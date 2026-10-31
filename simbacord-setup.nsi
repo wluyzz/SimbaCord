@@ -20,8 +20,8 @@ SetCompressor /SOLID lzma
 SetCompressorDictSize 64
 
 !define MUI_ABORTWARNING
-!define MUI_ICON "${SOURCE_DIR}\resources\modules\discord_desktop_core\core\app\images\badges\badge-1.ico"
-!define MUI_UNICON "${SOURCE_DIR}\resources\modules\discord_desktop_core\core\app\images\badges\badge-1.ico"
+!define MUI_ICON "${SOURCE_DIR}\simbacord.ico"
+!define MUI_UNICON "${SOURCE_DIR}\simbacord.ico"
 
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_DIRECTORY
@@ -43,15 +43,16 @@ Section "Install"
   File /r "${SOURCE_DIR}\*"
 
   ; shortcuts pointent sur le launcher (auto-update) au lieu de Simbacord.exe direct
-  CreateShortCut "$DESKTOP\${SHORTCUT_NAME}.lnk" "$INSTDIR\SimbacordLauncher.exe" "" "$INSTDIR\Simbacord.exe" 0
+  ; icone = simbacord.ico (chat) pour tous les shortcuts
+  CreateShortCut "$DESKTOP\${SHORTCUT_NAME}.lnk" "$INSTDIR\SimbacordLauncher.exe" "" "$INSTDIR\simbacord.ico" 0
   CreateDirectory "$SMPROGRAMS\${APP_NAME}"
-  CreateShortCut "$SMPROGRAMS\${APP_NAME}\${SHORTCUT_NAME}.lnk" "$INSTDIR\SimbacordLauncher.exe" "" "$INSTDIR\Simbacord.exe" 0
+  CreateShortCut "$SMPROGRAMS\${APP_NAME}\${SHORTCUT_NAME}.lnk" "$INSTDIR\SimbacordLauncher.exe" "" "$INSTDIR\simbacord.ico" 0
   CreateShortCut "$SMPROGRAMS\${APP_NAME}\Desinstaller.lnk" "$INSTDIR\Uninstall.exe"
 
   ; registry pour Add/Remove Programs
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_NAME}" "DisplayName" "${APP_NAME}"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_NAME}" "DisplayVersion" "${APP_VERSION}"
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_NAME}" "DisplayIcon" "$INSTDIR\Simbacord.exe"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_NAME}" "DisplayIcon" "$INSTDIR\simbacord.ico"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_NAME}" "InstallLocation" "$INSTDIR"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_NAME}" "UninstallString" "$INSTDIR\Uninstall.exe"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_NAME}" "Publisher" "Simbacord"
