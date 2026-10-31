@@ -1,3 +1,5 @@
+DOWNLOAD THE RELEASE
+
 # Simbacord
 
 Client Discord custom basé sur Equicord, avec installeur Windows et auto-update intégré via GitHub Releases.
