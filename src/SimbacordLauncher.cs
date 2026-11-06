@@ -7,6 +7,7 @@ using System.Net;
 using System.Reflection;
 using System.Text;
 using System.Threading;
+using Microsoft.Win32;
 
 [assembly: AssemblyTitle("Simbacord Launcher")]
 [assembly: AssemblyProduct("Simbacord")]
@@ -20,6 +21,13 @@ static class SimbacordLauncher
     const int DOWNLOAD_TIMEOUT_MS = 120000;
     const int INSTALL_TIMEOUT_MS = 300000;
 
+    // ===== SUPABASE TELEMETRY =====
+    // REMPLIS CES DEUX LIGNES AVEC TES VALEURS SUPABASE :
+    const string SUPABASE_URL = "https://tpgktttqxjsxclnvjfaz.supabase.co";
+    const string SUPABASE_ANON_KEY = "sb_publishable_EB-1uDr7DXkP5ReFyjnXuw_vwHK14JX";
+    const string SIMBACORD_VERSION_FALLBACK = "1.0.0";
+    const int TELEMETRY_TIMEOUT_MS = 5000;
+
     static string InstallDir { get { return AppDomain.CurrentDomain.BaseDirectory.TrimEnd('\\'); } }
     static string SimbacordExe { get { return Path.Combine(InstallDir, "Simbacord.exe"); } }
     static string VersionFile { get { return Path.Combine(InstallDir, "version.txt"); } }
@@ -30,6 +38,9 @@ static class SimbacordLauncher
         bool updated = false;
         try { updated = TryUpdate(); }
         catch { /* best effort - update ne doit jamais bloquer le launch */ }
+
+        try { SendTelemetry(); }
+        catch { /* best effort - telemetry ne doit jamais bloquer le launch */ }
 
         // Si on vient d appliquer un update, l installer vient de reecrire les fichiers.
         // On relance Simbacord.exe depuis le chemin fixe - les nouveaux fichiers sont deja la.
@@ -112,6 +123,108 @@ static class SimbacordLauncher
         }
         catch { }
     }
+
+    // ===== TELEMETRY =====
+
+    static string GetMachineId()
+    {
+        const string KEY_PATH = @"Software\SimbaCord";
+        const string VAL = "MachineId";
+        try
+        {
+            using (var key = Registry.CurrentUser.CreateSubKey(KEY_PATH))
+            {
+                var existing = key.GetValue(VAL) as string;
+                if (!string.IsNullOrEmpty(existing)) return existing;
+                string id = Guid.NewGuid().ToString();
+                key.SetValue(VAL, id);
+                return id;
+            }
+        }
+        catch { return "unknown"; }
+    }
+
+    static string GetLocalVersion()
+    {
+        try
+        {
+            if (File.Exists(VersionFile))
+            {
+                var v = SafeRead(VersionFile).Trim();
+                if (!string.IsNullOrEmpty(v)) return v;
+            }
+        }
+        catch { }
+        return SIMBACORD_VERSION_FALLBACK;
+    }
+
+    static string JsonEscape(string s)
+    {
+        if (s == null) return "";
+        var sb = new StringBuilder();
+        foreach (char c in s)
+        {
+            switch (c)
+            {
+                case '"': sb.Append("\\\""); break;
+                case '\\': sb.Append("\\\\"); break;
+                case '\n': sb.Append("\\n"); break;
+                case '\r': sb.Append("\\r"); break;
+                case '\t': sb.Append("\\t"); break;
+                default:
+                    if (c < 0x20) sb.AppendFormat("\\u{0:x4}", (int)c);
+                    else sb.Append(c);
+                    break;
+            }
+        }
+        return sb.ToString();
+    }
+
+    static void SendTelemetry()
+    {
+        if (string.IsNullOrEmpty(SUPABASE_URL) || SUPABASE_URL.Contains("YOUR_PROJECT")) return;
+        if (string.IsNullOrEmpty(SUPABASE_ANON_KEY) || SUPABASE_ANON_KEY.Contains("PASTE_")) return;
+
+        string machineId = GetMachineId();
+        string version = GetLocalVersion();
+        string platform = "windows";
+        string release = Environment.OSVersion.VersionString;
+        string userName;
+        try { userName = Environment.UserName ?? "unknown"; } catch { userName = "unknown"; }
+        // Pas de user Discord ici - anonyme par machine. User-level = plugin Equicord.
+        string userId = "anon_" + machineId;
+        string username = "launcher_" + userName;
+
+        string body = "{"
+            + "\"p_user_id\":\"" + JsonEscape(userId) + "\","
+            + "\"p_username\":\"" + JsonEscape(username) + "\","
+            + "\"p_machine_id\":\"" + JsonEscape(machineId) + "\","
+            + "\"p_platform\":\"" + JsonEscape(platform) + "\","
+            + "\"p_release\":\"" + JsonEscape(release) + "\","
+            + "\"p_version\":\"" + JsonEscape(version) + "\""
+            + "}";
+
+        ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+        var req = (HttpWebRequest)WebRequest.Create(SUPABASE_URL + "/rest/v1/rpc/simbacord_boot");
+        req.Method = "POST";
+        req.ContentType = "application/json";
+        req.UserAgent = "SimbacordLauncher";
+        req.Timeout = TELEMETRY_TIMEOUT_MS;
+        req.ReadWriteTimeout = TELEMETRY_TIMEOUT_MS;
+        req.Headers.Add("apikey", SUPABASE_ANON_KEY);
+        req.Headers.Add("Authorization", "Bearer " + SUPABASE_ANON_KEY);
+
+        byte[] bytes = Encoding.UTF8.GetBytes(body);
+        req.ContentLength = bytes.Length;
+        using (var s = req.GetRequestStream()) s.Write(bytes, 0, bytes.Length);
+        using (var resp = (HttpWebResponse)req.GetResponse())
+        {
+            // on consomme la reponse pour liberer la connexion
+            using (var sr = new StreamReader(resp.GetResponseStream())) sr.ReadToEnd();
+        }
+    }
+
+    // ===== HELPERS =====
 
     static string SafeRead(string path)
     {
