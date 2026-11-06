@@ -1,15 +1,28 @@
 ; Simbacord installer - cree un dossier Simbacord avec Simbacord.exe
 ; sur le bureau de l utilisateur, avec shortcut et icone.
 ; Shortcuts pointent sur SimbacordLauncher.exe qui gere l auto-update.
+;
+; SOURCE_DIR et OUTPUT_EXE sont passes par build.ps1 via /D defines.
+; Fallback : variables d environnement USERPROFILE.
+
 !include "MUI2.nsh"
 
 !define APP_NAME "Simbacord"
 !define APP_VERSION "1.0.0"
 !define SHORTCUT_NAME "Simbacord"
-!define SOURCE_DIR "C:\Users\Princee\Desktop\Simbacord"
+
+; SOURCE_DIR et OUTPUT_EXE peuvent etre overriden via :
+;   makensis /DSOURCE_DIR="C:\path\to\simbacord" /DOUTPUT_EXE="C:\path\out.exe" simbacord-setup.nsi
+; Sinon fallback sur le Desktop de l utilisateur courant.
+!ifndef SOURCE_DIR
+  !define SOURCE_DIR "$%USERPROFILE%\Desktop\Simbacord"
+!endif
+!ifndef OUTPUT_EXE
+  !define OUTPUT_EXE "$%USERPROFILE%\Desktop\simbacordsetup.exe"
+!endif
 
 Name "${APP_NAME}"
-OutFile "C:\Users\Princee\Desktop\simbacordsetup.exe"
+OutFile "${OUTPUT_EXE}"
 InstallDir "$DESKTOP\${APP_NAME}"
 RequestExecutionLevel user
 ShowInstDetails show
